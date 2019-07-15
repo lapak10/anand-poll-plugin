@@ -8,3 +8,6 @@ a) Datepicker for Admin while posting the poll
 a) Poll posting
 b) Poll Submittin from frontend
 c) Poll is capturing if the user has submitted the poll or not (COOKIE BASED)
+
+## Author
+Anand Kumar Chaudhary ( anand.kmk@gmail.com )
