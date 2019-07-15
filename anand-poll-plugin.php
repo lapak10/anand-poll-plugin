@@ -7,19 +7,42 @@
 * Author: Anand - anand.kmk@gmail.com
 * Author URI: https://example.com
 **/
-function nd_register_cst_poll() {
+
+date_default_timezone_set ( get_option('timezone_string') );
+
+add_filter('enter_title_here', 'my_title_place_holder' , 20 , 2 );
+    function my_title_place_holder($title , $post){
+
+        if( $post->post_type == 'cst_poll' ){
+            $my_title = "Enter Poll Question here..";
+            return $my_title;
+        }
+
+        return $title;
+
+}
+
+if( isset( $_POST['poll_answer'] ) AND isset( $_POST['poll_id'] ) ){
+    Anand_Poll_Widget :: save_answer(  $_POST['poll_id'] , $_POST['poll_answer'] );
+}
+
+
+
+function anand_register_cst_poll() {
 
 	/**
 	 * Create cst_poll post type.
 	 */
 
 	$labels = array(
-		"name" => __( "Polls", "twentynineteen" ),
-		"singular_name" => __( "poll", "twentynineteen" ),
+		"name" => __( "Anand - Polls", "twentynineteen" ),
+        "singular_name" => __( "poll", "twentynineteen" ),
+        "add_new_item" => __( "Add New Poll", "twentynineteen" ),
+        
 	);
 
 	$args = array(
-		"label" => __( "Polls", "twentynineteen" ),
+		"label" => __( "Anand - Polls", "twentynineteen" ),
 		"labels" => $labels,
 		"description" => "",
 		"public" => true,
@@ -38,20 +61,21 @@ function nd_register_cst_poll() {
 		"hierarchical" => false,
 		"rewrite" => array( "slug" => "cst_poll", "with_front" => true ),
 		"query_var" => true,
-		"supports" => array( "title"),
+        "supports" => array( "title"),
+        'menu_icon'           => 'dashicons-chart-bar',
 	);
 
 	register_post_type( "cst_poll", $args );
 }
 
-add_action( 'init', 'nd_register_cst_poll' );
+add_action( 'init', 'anand_register_cst_poll' );
 
 /**
  * generate metabox and fields
  */
 
 
-function nd_poll_fields() {
+function anand_poll_fields() {
 	global $post;
 	// Nonce field to validate form request came from current site
 	wp_nonce_field( basename( __FILE__ ), 'poll_fields' );
@@ -62,16 +86,16 @@ function nd_poll_fields() {
 	// Output the field
 	echo '<style> </style>';
 	echo '<label>Active Date </label><input type="date" name="poll_active_date" value="' . esc_textarea( $active_date )  . '"><br>';
-	echo '<label>Option One </label><input type="text" name="poll_option_one" value="' . esc_textarea( $option_one )  . '" ><br>';
-	echo '<label>Option Two </label><input type="text" name="poll_option_two" value="' . esc_textarea( $option_two )  . '" ><br>';
+	echo '<label>First Option</label> <input type="text" name="poll_option_one" value="' . esc_textarea( $option_one )  . '" ><br>';
+	echo '<label >Second Option</label> <input type="text" name="poll_option_two" value="' . esc_textarea( $option_two )  . '" ><br>';
 	
 }
 
-function nd_add_metabox() {
+function anand_add_metabox() {
 	add_meta_box(
-		'nd_poll_fields',
+		'anand_poll_fields',
 		'Poll Options',
-		'nd_poll_fields',
+		'anand_poll_fields',
 		'cst_poll',
 		'normal',
 		'high'
@@ -79,13 +103,13 @@ function nd_add_metabox() {
 }
 
 
-add_action( 'add_meta_boxes', 'nd_add_metabox' );
+add_action( 'add_meta_boxes', 'anand_add_metabox' );
 
 
 /**
  * Save the metabox data
  */
-function nd_save_poll_options( $post_id, $post ) {
+function anand_save_poll_options( $post_id, $post ) {
 	// Return if the user doesn't have edit permissions.
 	if ( ! current_user_can( 'edit_post', $post_id ) ) {
 		return $post_id;
@@ -121,46 +145,187 @@ function nd_save_poll_options( $post_id, $post ) {
 		}
 	endforeach;
 }
-add_action( 'save_post', 'nd_save_poll_options', 1, 2 );
+add_action( 'save_post', 'anand_save_poll_options', 1, 2 );
 
 
 
 
 // register widget
 
-class Poll_Widget extends WP_Widget {
+class Anand_Poll_Widget extends WP_Widget {
 	// class constructor
 	public function __construct() {
 		$widget_ops = array( 
-		'classname' => 'nd_poll_widget',
-		'description' => 'Poll widget by Anand',
+		'classname' => 'anand_poll_widget',
+		'description' => 'Poll widget submitted by Anand - anand.kmk@gmail.com',
 	);
-	parent::__construct( 'nd_poll_widget', 'Poll Widget by ND', $widget_ops );
-	}
+	parent::__construct( 'anand_poll_widget', 'Poll Widget by ANAND', $widget_ops );
+    }
+    
+    private static function get_todays_poll_question(){
+
+        
+
+       return get_posts( array( 
+            //assuming maximum of 1 poll can be added to any day
+            'posts_per_page' => 1,
+             'post_type' =>'cst_poll',
+             'post_status' => array('publish'),
+             
+             'meta_query' => array(
+             
+                 array('key'=>'poll_active_date','value' => date('Y-m-d')  )
+                 
+             
+             
+             )) );
+        
+    }
+
+    public function save_answer($poll_id , $poll_answer){
+
+        if( 'option_one' === $poll_answer ) {
+            $current_option_one_count = (int) get_post_meta( $poll_id , 'option_one_count' , true );
+
+            update_post_meta(  $poll_id , 'option_one_count', ++$current_option_one_count );
+
+        }
+        if( 'option_two' === $poll_answer ) {
+            $current_option_two_count = (int) get_post_meta( $poll_id , 'option_two_count' , true );
+            //wp_die( json_encode( $_POST ) );
+            update_post_meta(  $poll_id , 'option_two_count', ++$current_option_two_count  );
+
+        }
+        
+        setcookie( "anand_poll_id_" . date("Y-m-d") , $poll_id , time() + time() + (10 * 365 * 24 * 60 * 60) , "/");
+        setcookie( "anand_poll_answer_" . date("Y-m-d") , $poll_answer , time() + time() + (10 * 365 * 24 * 60 * 60) , "/");
+    }
+
+    private function get_results_array( $poll_id ){
+
+        $option_one_count = (int) get_post_meta( $poll_id , 'option_one_count' , true );
+        $option_two_count = (int) get_post_meta( $poll_id , 'option_two_count' , true );
+        $total_count = $option_one_count + $option_two_count;
+        $option_one_percentage = ( $option_one_count / $total_count ) * 100;
+        $option_two_percentage = ( $option_two_count / $total_count ) * 100;
+
+        return array(
+            'option_one_count' =>  $option_one_count
+            ,'option_two_count' => $option_two_count
+            ,'total_vote_count' => $total_count
+            ,'option_one_percentage' => round ( $option_one_percentage ,1) 
+            ,'option_two_percentage' =>  round ( $option_two_percentage ,1) 
+
+        );
+    }
+
+    private function print_result_form ( $poll_id , $poll_answer ){
+        $poll_title = get_the_title( $poll_id );
+        $option_one = ucwords( strtolower( get_post_meta( $poll_id,'poll_option_one',true ) ));
+        $option_two = ucwords ( strtolower( get_post_meta( $poll_id ,'poll_option_two',true ) ) );
+
+        $is_option_one_checked = "option_one" ===  $poll_answer ? 'checked':'';
+        $is_option_two_checked = "option_two" ===  $poll_answer ? 'checked':'';
+
+        $poll_result_array = self :: get_results_array( $poll_id );
+
+        $option_one_percentage =  $poll_result_array["option_one_percentage"];
+        $option_one_count = $poll_result_array["option_one_count"] ;
+
+        $option_two_percentage =  $poll_result_array["option_two_percentage"];
+        $option_two_count = $poll_result_array["option_two_count"] ;
+
+        $total_count = $poll_result_array["total_vote_count"];
+
+
+        echo <<<HTML
+        <fieldset>
+	<legend>$poll_title</legend>
+	<form method="POST">
+		<label>
+			<input type="radio" disabled name="poll_answer" value="option_one" $is_option_one_checked />
+            $option_one ( $option_one_percentage %, $option_one_count out of $total_count )
+		 </label>
+		<label>
+			<input type="radio" disabled name="poll_answer" value="option_two" $is_option_two_checked />
+            $option_two ( $option_two_percentage %, $option_two_count out of $total_count )
+		</label>
+        
+        <br>
+        
+		<input type="submit" name="submit" style="background: #388e3c;" id="submit" value="Already Voted !" disabled />
+		
+		
+	</form>
+</fieldset>
+HTML;
+
+    }
+
 	
 	// output the widget content on the front-end
 	public function widget( $args, $instance ) {
-	echo $args['before_widget'];
+
+        $cookie_poll_id_string = "anand_poll_id_" . date("Y-m-d");
+        $cookie_poll_answer_string = "anand_poll_answer_" . date("Y-m-d");
+
+    echo $args['before_widget'];
+    
 	if ( ! empty( $instance['title'] ) ) {
 		echo $args['before_title'] . apply_filters( 'widget_title', $instance['title'] ) . $args['after_title'];
 	}
 
-	if( ! empty( $instance['selected_posts'] ) && is_array( $instance['selected_posts'] ) ){ 
+	if(  empty( self :: get_todays_poll_question() ) ){ 
 
-		$selected_posts = get_posts( array( 'post__in' => $instance['selected_posts'] ) );
-		?>
-		<ul>
-		<?php foreach ( $selected_posts as $post ) { ?>
-			<li><a href="<?php echo get_permalink( $post->ID ); ?>">
-			<?php echo $post->post_title; ?>
-			</a></li>		
-		<?php } ?>
-		</ul>
-		<?php 
+		echo "No Poll For Today :)";
 		
-	}else{
-		echo esc_html__( 'No polls for today!', 'text_domain' );	
-	}
+    }
+    
+
+    elseif ( isset( $_POST['poll_id'] )  ) {
+       
+        self :: print_result_form( $_POST['poll_id'] , $_POST['poll_answer'] );
+        //echo json_encode( self :: get_results_array(  $_POST['poll_id']  ) );
+
+    }
+    else if (  isset( $_COOKIE[ $cookie_poll_id_string ] ) ) {
+
+        self :: print_result_form( $_COOKIE[ $cookie_poll_id_string ] ,  $_COOKIE[ $cookie_poll_answer_string ]   );
+
+        //echo json_encode( self :: get_results_array(   $_COOKIE[ $today_cookie_string ]  ) );
+    }
+    
+    
+    else{
+        $poll = self :: get_todays_poll_question();
+        $poll_id = $poll[0]->ID;
+        $poll_question = get_the_title( $poll_id );
+        $option_one = ucwords( strtolower( get_post_meta( $poll_id ,'poll_option_one',true ) ));
+        $option_two = ucwords ( strtolower( get_post_meta( $poll_id ,'poll_option_two',true ) ) );
+       echo <<<HTML
+        <fieldset>
+    <legend>$poll_question</legend>
+    <form method="POST">
+        <label>
+            <input type="radio" name="poll_answer" value="option_one" />
+            $option_one
+         </label>
+        <label>
+            <input type="radio" name="poll_answer" value="option_two" />
+            $option_two
+        </label>
+        
+        <br>
+        <input type="hidden" name="poll_id"  value="$poll_id" />
+        <input type="submit" name="submit" id="submit" value="Vote" />
+		
+		
+	</form>
+</fieldset>
+HTML;
+
+
+}
 
 	echo $args['after_widget'];
 }
@@ -195,5 +360,5 @@ class Poll_Widget extends WP_Widget {
 }
 
 add_action( 'widgets_init', function(){
-	register_widget( 'Poll_Widget' );
+	register_widget( 'Anand_Poll_Widget' );
 });
